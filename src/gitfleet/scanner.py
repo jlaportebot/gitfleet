@@ -31,6 +31,10 @@ def discover_repos(root: Path, max_depth: int = 5) -> list[RepoInfo]:
     repos: list[RepoInfo] = []
     root = root.resolve()
 
+    # Check root directory first
+    if is_git_repo(root):
+        repos.append(scan_repo(root))
+
     def _scan_dir(current: Path, depth: int) -> None:
         if depth > max_depth:
             return
@@ -43,7 +47,6 @@ def discover_repos(root: Path, max_depth: int = 5) -> list[RepoInfo]:
                 if is_git_repo(entry):
                     repo_info = scan_repo(entry)
                     repos.append(repo_info)
-                    # Continue scanning subdirectories for nested repos
 
                 _scan_dir(entry, depth + 1)
         except (PermissionError, OSError):
