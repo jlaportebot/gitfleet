@@ -8,6 +8,7 @@ from rich.console import Console
 from rich.table import Table
 
 from gitfleet import __version__
+from gitfleet.github import enrich_repos, extract_owner_repo_from_url
 from gitfleet.health import evaluate_repo_health
 from gitfleet.models import HealthGrade
 from gitfleet.scanner import discover_repos
@@ -175,3 +176,67 @@ def _grade_color(grade: HealthGrade | None) -> str:
 
 if __name__ == "__main__":
     main()
+
+
+@main.command()
+@click.argument("path", type=click.Path(exists=True, file_okay=False, path_type=Path), default=".")
+@click.option("--max-depth", "-d", default=5, help="Maximum directory depth to scan")
+@click.option("--json", "json_output", is_flag=True, help="Output as JSON")
+def enrich(path: Path, max_depth: int, json_output: bool) -> None:
+    """Enrich discovered repositories with GitHub metadata (stars, forks, description, etc.)."""
+    repos = discover_repos(path, max_depth=max_depth)
+
+    if not repos:
+        console.print("[yellow]No repositories found[/yellow]")
+        return
+
+    console.print(f"[blue]Discovered {len(repos)} repositories, enriching from GitHub...[/blue]")
+    enriched = enrich_repos(repos)
+
+    # Filter to only show repos that were successfully enriched (have GitHub remotes)
+    github_repos = [r for r in enriched if extract_owner_repo_from_url(r.remote_url or "")]
+
+    if not github_repos:
+        console.print("[yellow]No GitHub repositories found to enrich[/yellow]")
+        return
+
+    if json_output:
+        output = [
+            {
+                "name": r.name,
+                "path": r.path,
+                "remote_url": r.remote_url,
+                "description": r.description,
+                "language": r.language,
+                "stars": r.stars,
+                "forks": r.forks,
+                "default_branch": r.default_branch,
+                "last_pushed": r.last_pushed.isoformat() if r.last_pushed else None,
+            }
+            for r in github_repos
+        ]
+        console.print(json.dumps(output, indent=2))
+        return
+
+    # Display as table
+    table = Table(title=f"GitHub Enriched Repositories ({len(github_repos)})")
+    table.add_column("Name", style="cyan")
+    table.add_column("Language", style="magenta")
+    table.add_column("Stars", justify="right", style="yellow")
+    table.add_column("Forks", justify="right", style="blue")
+    table.add_column("Description")
+
+    for repo in github_repos:
+        desc = repo.description or "—"
+        MAX_DESC_LENGTH = 60
+        if len(desc) > MAX_DESC_LENGTH:
+            desc = desc[: MAX_DESC_LENGTH - 3] + "..."
+        table.add_row(
+            repo.name,
+            repo.language or "—",
+            str(repo.stars),
+            str(repo.forks),
+            desc,
+        )
+
+    console.print(table)

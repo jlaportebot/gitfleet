@@ -118,6 +118,78 @@ class TestCLI:
         assert "repo1" in result.output
         assert "repo2" in result.output
 
+    @patch("gitfleet.cli.discover_repos")
+    @patch("gitfleet.cli.enrich_repos")
+    def test_enrich_command_no_repos(self, mock_enrich, mock_discover, tmp_path):
+        mock_discover.return_value = []
+        runner = CliRunner()
+        result = runner.invoke(main, ["enrich", str(tmp_path)])
+        assert result.exit_code == 0
+        assert "No repositories found" in result.output
+
+    @patch("gitfleet.cli.discover_repos")
+    @patch("gitfleet.cli.enrich_repos")
+    def test_enrich_command_no_github_repos(self, mock_enrich, mock_discover, tmp_path):
+        mock_repo = Mock()
+        mock_repo.path = str(tmp_path / "repo1")
+        mock_repo.name = "repo1"
+        mock_repo.remote_url = "https://gitlab.com/user/repo1.git"  # Non-GitHub
+        mock_discover.return_value = [mock_repo]
+        mock_enrich.return_value = [mock_repo]
+
+        runner = CliRunner()
+        result = runner.invoke(main, ["enrich", str(tmp_path)])
+        assert result.exit_code == 0
+        assert "No GitHub repositories found to enrich" in result.output
+
+    @patch("gitfleet.cli.discover_repos")
+    @patch("gitfleet.cli.enrich_repos")
+    def test_enrich_command_with_github_repos(self, mock_enrich, mock_discover, tmp_path):
+        mock_repo = Mock()
+        mock_repo.path = str(tmp_path / "repo1")
+        mock_repo.name = "repo1"
+        mock_repo.remote_url = "https://github.com/user/repo1.git"
+        mock_repo.default_branch = "main"
+        mock_repo.description = "Test description"
+        mock_repo.language = "Python"
+        mock_repo.stars = 42
+        mock_repo.forks = 10
+        mock_repo.last_pushed = None
+        mock_discover.return_value = [mock_repo]
+        mock_enrich.return_value = [mock_repo]
+
+        runner = CliRunner()
+        result = runner.invoke(main, ["enrich", str(tmp_path)])
+        assert result.exit_code == 0
+        assert "repo1" in result.output
+        assert "Python" in result.output
+        assert "42" in result.output
+        assert "10" in result.output
+        assert "Test description" in result.output
+
+    @patch("gitfleet.cli.discover_repos")
+    @patch("gitfleet.cli.enrich_repos")
+    def test_enrich_command_json_output(self, mock_enrich, mock_discover, tmp_path):
+        mock_repo = Mock()
+        mock_repo.path = str(tmp_path / "repo1")
+        mock_repo.name = "repo1"
+        mock_repo.remote_url = "https://github.com/user/repo1.git"
+        mock_repo.default_branch = "main"
+        mock_repo.description = "Test description"
+        mock_repo.language = "Python"
+        mock_repo.stars = 42
+        mock_repo.forks = 10
+        mock_repo.last_pushed = None
+        mock_discover.return_value = [mock_repo]
+        mock_enrich.return_value = [mock_repo]
+
+        runner = CliRunner()
+        result = runner.invoke(main, ["enrich", str(tmp_path), "--json"])
+        assert result.exit_code == 0
+        assert "repo1" in result.output
+        assert "Python" in result.output
+        assert "42" in result.output
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
