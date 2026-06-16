@@ -230,7 +230,7 @@ def enrich(path: Path, max_depth: int, json_output: bool) -> None:
         desc = repo.description or "—"
         MAX_DESC_LENGTH = 60
         if len(desc) > MAX_DESC_LENGTH:
-            desc = desc[:MAX_DESC_LENGTH - 3] + "..."
+            desc = desc[: MAX_DESC_LENGTH - 3] + "..."
         table.add_row(
             repo.name,
             repo.language or "—",

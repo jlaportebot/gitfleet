@@ -77,7 +77,7 @@ class TestFetchGitHubRepoInfo:
                 "Test repo\nPython\n100\n50\n20\n5\nMIT\nmain\n"
                 "2024-01-15T10:00:00Z\n2023-01-01T00:00:00Z\n"
                 "2024-01-10T00:00:00Z\nhttps://example.com\n"
-                "[\"topic1\", \"topic2\"]\nfalse\nfalse\npublic"
+                '["topic1", "topic2"]\nfalse\nfalse\npublic'
             ),
         )
 

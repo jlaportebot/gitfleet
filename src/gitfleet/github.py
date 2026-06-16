@@ -70,9 +70,9 @@ def fetch_github_repo_info(owner: str, repo: str) -> GitHubRepoInfo | None:
         # Use gh api to fetch repo info
         jq_query = (
             "(.description, .language, .stargazers_count, .forks_count, "
-            ".watchers_count, .open_issues_count, .license?.spdx_id // \"\", "
+            '.watchers_count, .open_issues_count, .license?.spdx_id // "", '
             ".default_branch, .pushed_at, .created_at, .updated_at, "
-            ".homepage // \"\", .topics // [], .archived, .disabled, .visibility)"
+            '.homepage // "", .topics // [], .archived, .disabled, .visibility)'
         )
         result = subprocess.run(
             [
