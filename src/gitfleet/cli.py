@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import click
+import uvicorn
 from rich.console import Console
 from rich.table import Table
 
@@ -158,6 +159,25 @@ def list(path: Path, max_depth: int) -> None:
         )
 
     console.print(table)
+
+
+@main.command()
+@click.argument("path", type=click.Path(exists=True, file_okay=False, path_type=Path), default=".")
+@click.option("--host", default="127.0.0.1", help="Host to bind to")
+@click.option("--port", "-p", default=8000, help="Port to bind to")
+@click.option("--reload", is_flag=True, help="Enable auto-reload for development")
+def serve(path: Path, host: str, port: int, reload: bool) -> None:
+    """Start the GitFleet web dashboard."""
+    console.print(f"[blue]Starting GitFleet dashboard on http://{host}:{port}[/blue]")
+    console.print(f"[blue]Scanning repositories in: {path}[/blue]")
+
+    uvicorn.run(
+        "gitfleet.web:app",
+        host=host,
+        port=port,
+        reload=reload,
+        reload_dirs=["src/gitfleet"] if reload else None,
+    )
 
 
 def _grade_color(grade: HealthGrade | None) -> str:

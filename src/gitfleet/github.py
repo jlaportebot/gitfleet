@@ -24,7 +24,7 @@ class GitHubRepoInfo:
     created_at: datetime | None = None
     updated_at: datetime | None = None
     homepage: str | None = None
-    topics: list[str] = None
+    topics: list[str] | None = None
     archived: bool = False
     disabled: bool = False
     visibility: str | None = None
@@ -96,7 +96,7 @@ def fetch_github_repo_info(owner: str, repo: str) -> GitHubRepoInfo | None:
             return None
 
         # Parse topics (JSON array)
-        topics = []
+        topics: list[str] = []
         try:
             topics = json.loads(lines[12]) if lines[12] else []
         except json.JSONDecodeError:

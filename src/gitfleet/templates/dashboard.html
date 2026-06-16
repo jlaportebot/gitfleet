@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .grade-a { color: #28a745; }
+        .grade-b { color: #17a2b8; }
+        .grade-c { color: #ffc107; }
+        .grade-d { color: #fd7e14; }
+        .grade-f { color: #dc3545; }
+        .repo-card { transition: transform 0.2s; }
+        .repo-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .score-circle {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+        .check-item { font-size: 0.85rem; }
+        .check-pass { color: #28a745; }
+        .check-fail { color: #dc3545; }
+        .spinner-border { width: 3rem; height: 3rem; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-diagram-3"></i> GitFleet Dashboard
+            </a>
+            <div class="d-flex">
+                <button class="btn btn-outline-light me-2" onclick="scanRepos()">
+                    <i class="bi bi-arrow-clockwise"></i> Scan
+                </button>
+                <span class="badge bg-secondary" id="repo-count">0 repos</span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid py-4">
+        <!-- Summary Cards -->
+        <div class="row mb-4" id="summary-cards">
+            <div class="col-md-3">
+                <div class="card text-white bg-primary">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Repos</h5>
+                        <p class="card-text display-4" id="total-repos">0</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-success">
+                    <div class="card-body">
+                        <h5 class="card-title">Passing</h5>
+                        <p class="card-text display-4" id="passing-repos">0</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-danger">
+                    <div class="card-body">
+                        <h5 class="card-title">Failing</h5>
+                        <p class="card-text display-4" id="failing-repos">0</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-info">
+                    <div class="card-body">
+                        <h5 class="card-title">Avg Score</h5>
+                        <p class="card-text display-4" id="avg-score">0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Repository List -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Repository Health</h5>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary" onclick="sortTable('score')">Score</button>
+                    <button class="btn btn-outline-secondary" onclick="sortTable('grade')">Grade</button>
+                    <button class="btn btn-outline-secondary" onclick="sortTable('name')">Name</button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" id="repo-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Repository</th>
+                                <th>Score</th>
+                                <th>Grade</th>
+                                <th>Status</th>
+                                <th>Checks</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="repo-body">
+                            <tr>
+                                <td colspan="6" class="text-center py-5">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p class="mt-2">Click Scan to analyze repositories</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let repoData = [];
+
+        async function scanRepos() {
+            const btn = event.target.closest('button');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Scanning...';
+
+            try {
+                const response = await fetch('/api/scan');
+                const data = await response.json();
+                repoData = data.repositories;
+                renderSummary(data.summary);
+                renderTable(repoData);
+            } catch (error) {
+                console.error('Scan failed:', error);
+                alert('Scan failed: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Scan';
+            }
+        }
+
+        function renderSummary(summary) {
+            document.getElementById('total-repos').textContent = summary.total;
+            document.getElementById('passing-repos').textContent = summary.passing;
+            document.getElementById('failing-repos').textContent = summary.failing;
+            document.getElementById('avg-score').textContent = summary.average_score;
+            document.getElementById('repo-count').textContent = `${summary.total} repos`;
+        }
+
+        function gradeClass(grade) {
+            return `grade-${grade.toLowerCase()}`;
+        }
+
+        function renderTable(repos) {
+            const tbody = document.getElementById('repo-body');
+            if (repos.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-5">No repositories found</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = repos.map(repo => `
+                <tr class="repo-card">
+                    <td>
+                        <strong>${repo.repo_path.split('/').pop()}</strong>
+                        <br><small class="text-muted">${repo.repo_path}</small>
+                    </td>
+                    <td>
+                        <div class="score-circle bg-${repo.is_passing ? 'success' : 'danger'} text-white mx-auto">
+                            ${repo.overall_score}
+                        </div>
+                    </td>
+                    <td class="text-center">
+                        <span class="badge bg-secondary ${gradeClass(repo.grade)}">${repo.grade}</span>
+                    </td>
+                    <td class="text-center">
+                        <span class="badge ${repo.is_passing ? 'bg-success' : 'bg-danger'}">
+                            ${repo.is_passing ? '<i class="bi bi-check-circle"></i> Pass' : '<i class="bi bi-x-circle"></i> Fail'}
+                        </span>
+                    </td>
+                    <td>
+                        ${Object.entries(repo.checks).map(([name, passed]) => `
+                            <div class="check-item">
+                                <i class="bi bi-${passed ? 'check-circle check-pass' : 'x-circle check-fail'}"></i>
+                                ${name}
+                            </div>
+                        `).join('')}
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewDetails('${repo.repo_path}')">
+                            <i class="bi bi-zoom-in"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function sortTable(key) {
+            const order = repoData.sort((a, b) => {
+                if (key === 'score') return b.overall_score - a.overall_score;
+                if (key === 'grade') return a.grade.localeCompare(b.grade);
+                if (key === 'name') return a.repo_path.localeCompare(b.repo_path);
+                return 0;
+            });
+            renderTable(repoData);
+        }
+
+        async function viewDetails(repoPath) {
+            try {
+                const response = await fetch(`/api/health/${encodeURIComponent(repoPath)}`);
+                const health = await response.json();
+                alert(`Details for ${repoPath}:\nScore: ${health.overall_score}\nGrade: ${health.grade}\nChecks: ${JSON.stringify(health.checks, null, 2)}`);
+            } catch (error) {
+                alert('Failed to load details: ' + error.message);
+            }
+        }
+
+        // Auto-scan on load
+        document.addEventListener('DOMContentLoaded', scanRepos);
+    </script>
+</body>
+</html>
